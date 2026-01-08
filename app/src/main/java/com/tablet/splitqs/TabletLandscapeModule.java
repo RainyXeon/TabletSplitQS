@@ -185,31 +185,41 @@ public class TabletLandscapeModule implements IXposedHookLoadPackage {
      */
     private void hookNotificationWidth(XC_LoadPackage.LoadPackageParam lpparam) {
 
-        XposedHelpers.findAndHookMethod(
-                "com.android.systemui.statusbar.notification.stack.NotificationStackScrollLayout",
-                lpparam.classLoader,
-                "onMeasure",
-                int.class,
-                int.class,
-                new XC_MethodHook() {
+    XposedHelpers.findAndHookMethod(
+            "com.android.systemui.statusbar.notification.stack.NotificationStackScrollLayout",
+            lpparam.classLoader,
+            "onMeasure",
+            int.class,
+            int.class,
+            new XC_MethodHook() {
 
-                    @Override
-                    protected void afterHookedMethod(MethodHookParam param) {
+                @Override
+                protected void afterHookedMethod(MethodHookParam param) {
 
-                        View view = (View) param.thisObject;
-                        Resources res = view.getResources();
-                        Configuration c = res.getConfiguration();
+                    View view = (View) param.thisObject;
+                    Resources res = view.getResources();
+                    Configuration c = res.getConfiguration();
 
-                        if (c.orientation != Configuration.ORIENTATION_LANDSCAPE) return;
+                    // Landscape only
+                    if (c.orientation != Configuration.ORIENTATION_LANDSCAPE) return;
 
-                        int fullWidth = view.getMeasuredWidth();
-                        int height = view.getMeasuredHeight();
-                        if (fullWidth <= 0) return;
+                    int widthSpec = (int) param.args[0];
+                    int heightSpec = (int) param.args[1];
 
-                        int newWidth = (int) (fullWidth * NOTIF_WIDTH_RATIO);
-                        view.setMeasuredDimension(newWidth, height);
-                    }
+                    int fullWidth = View.MeasureSpec.getSize(widthSpec);
+                    if (fullWidth <= 0) return;
+
+                    int newWidth = (int) (fullWidth * NOTIF_WIDTH_RATIO);
+
+                    int newWidthSpec = View.MeasureSpec.makeMeasureSpec(
+                            newWidth,
+                            View.MeasureSpec.EXACTLY
+                    );
+
+                    // Re-measure with constrained width
+                    view.measure(newWidthSpec, heightSpec);
                 }
-        );
+            }
+    );
     }
-                                    }
+}
