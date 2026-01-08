@@ -63,12 +63,12 @@ public class TabletLandscapeModule implements IXposedHookLoadPackage {
                         Configuration c = res.getConfiguration();
                         switch (entryName) {
                             case "config_skinnyNotifsInLandscape":
-                                // true only in landscape
-                                param.setResult(false);
+                                // false only in landscape
+                                param.setResult(c.orientation != Configuration.ORIENTATION_LANDSCAPE);
                                 break;
                             case "can_use_one_handed_bouncer":
                                 // true only in portrait
-                                param.setResult(true);
+                                param.setResult(c.orientation == Configuration.ORIENTATION_LANDSCAPE);
                                 break;
                         }
                     } catch (Resources.NotFoundException ignored) {
