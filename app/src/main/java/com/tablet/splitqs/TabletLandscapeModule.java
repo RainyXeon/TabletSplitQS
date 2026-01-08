@@ -22,6 +22,7 @@ public class TabletLandscapeModule implements IXposedHookLoadPackage {
             hookSplitShadeDecision(lpparam);
             hookSystemBooleanResource();
             hookSystemIntegerResource();
+            hookWindowRootViewInsets(lpparam);
         } catch (Throwable t) {
             XposedBridge.log(t);
         }
@@ -103,6 +104,49 @@ public class TabletLandscapeModule implements IXposedHookLoadPackage {
                                 break;
                         }
                     } catch (Resources.NotFoundException ignored) {
+                    }
+                }
+            }
+        );
+    }
+
+    private void hookWindowRootViewInsets(XC_LoadPackage.LoadPackageParam lpparam) {
+        XposedHelpers.findAndHookMethod(
+            "com.android.systemui.scene.ui.view.WindowRootView",
+            lpparam.classLoader,
+            "onApplyWindowInsets",
+            WindowInsets.class,
+            new XC_MethodHook() {
+                @Override
+                protected void afterHookedMethod(MethodHookParam param) {
+                    View root = (View) param.thisObject;
+                    Resources res = root.getResources();
+                    Configuration c = res.getConfiguration();
+                    // Only affect landscape
+                    if (c.orientation != Configuration.ORIENTATION_LANDSCAPE) {
+                        return;
+                    }
+                    if (!(root instanceof ViewGroup)) return;
+                    ViewGroup vg = (ViewGroup) root;
+                    for (int i = 0; i < vg.getChildCount(); i++) {
+                        View child = vg.getChildAt(i);
+                        if (!(child.getLayoutParams()
+                                instanceof ViewGroup.MarginLayoutParams)) {
+                            continue;
+                        }
+                        ViewGroup.MarginLayoutParams lp =
+                                (ViewGroup.MarginLayoutParams)
+                                        child.getLayoutParams();
+                        // Force ignore left inset
+                        if (lp.leftMargin != 0) {
+                            lp.setMargins(
+                                    0,                  // left inset ignored
+                                    lp.topMargin,
+                                    lp.rightMargin,     // keep right inset
+                                    lp.bottomMargin
+                            );
+                            child.setLayoutParams(lp);
+                        }
                     }
                 }
             }
