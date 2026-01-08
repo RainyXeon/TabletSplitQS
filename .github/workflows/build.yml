@@ -6,9 +6,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./xposed-module
 
     steps:
       - name: Checkout
@@ -41,10 +38,12 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Build with Gradle
-        run: ./gradlew clean assembleRelease
+        run: |
+          chmod +x ./gradlew
+          ./gradlew clean assembleRelease
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v5
         with:
           name: xposed-module
-          path: xposed-module/app/build/outputs/apk/release/*.apk
+          path: app/build/outputs/apk/release/*.apk
