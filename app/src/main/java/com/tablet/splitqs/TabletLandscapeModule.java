@@ -19,28 +19,93 @@ public class TabletLandscapeModule implements IXposedHookLoadPackage {
         if (!SYSTEMUI.equals(lpparam.packageName)) return;
 
         try {
-            Class<?> cls = XposedHelpers.findClass(
-                    "com.android.systemui.statusbar.policy.SplitShadeStateControllerImpl",
-                    lpparam.classLoader
-            );
-
-            XposedBridge.hookAllMethods(
-                    cls,
-                    "shouldUseSplitNotificationShade",
-                    new XC_MethodHook() {
-                        @Override
-                        protected void beforeHookedMethod(MethodHookParam param) {
-                            Configuration c =
-                                    Resources.getSystem().getConfiguration();
-                            param.setResult(
-                                    c.orientation == Configuration.ORIENTATION_LANDSCAPE
-                            );
-                        }
-                    }
-            );
-
+            hookSplitShadeDecision(lpparam);
+            hookSystemBooleanResource();
+            hookSystemIntegerResource();
         } catch (Throwable t) {
             XposedBridge.log(t);
         }
+    }
+
+    private void hookSplitShadeDecision(XC_LoadPackage.LoadPackageParam lpparam) {
+        Class<?> cls = XposedHelpers.findClass(
+            "com.android.systemui.statusbar.policy.SplitShadeStateControllerImpl",
+            lpparam.classLoader
+        );
+        XposedBridge.hookAllMethods(
+            cls,
+            "shouldUseSplitNotificationShade",
+            new XC_MethodHook() {
+                @Override
+                protected void beforeHookedMethod(MethodHookParam param) {
+                    Configuration c =
+                        Resources.getSystem().getConfiguration();
+                    param.setResult(
+                        c.orientation == Configuration.ORIENTATION_LANDSCAPE
+                    );
+                }
+            }
+        );
+    }
+
+    private void hookSystemBooleanResource() {
+        XposedHelpers.findAndHookMethod(
+            Resources.class,
+            "getBoolean",
+            int.class,
+            new XC_MethodHook() {
+                @Override
+                protected void beforeHookedMethod(MethodHookParam param) {
+                    Resources res = (Resources) param.thisObject;
+                    int id = (int) param.args[0];
+                    try {
+                        String entryName = res.getResourceEntryName(id);
+                        Configuration c = res.getConfiguration();
+                        switch (entryName) {
+                            case "config_skinnyNotifsInLandscape":
+                                // true only in landscape
+                                param.setResult(false);
+                                break;
+                            case "can_use_one_handed_bouncer":
+                                // true only in portrait
+                                param.setResult(true);
+                                break;
+                        }
+                    } catch (Resources.NotFoundException ignored) {
+                    }
+                }
+            }
+        );
+    }
+
+    private void hookSystemIntegerResource() {
+        XposedHelpers.findAndHookMethod(
+            Resources.class,
+            "getInteger",
+            int.class,
+            new XC_MethodHook() {
+                @Override
+                protected void beforeHookedMethod(MethodHookParam param) {
+                    Resources res = (Resources) param.thisObject;
+                    int id = (int) param.args[0];
+                    try {
+                        String entryName = res.getResourceEntryName(id);
+                        Configuration c = res.getConfiguration();
+                        switch (entryName) {
+                            case "quick_settings_num_columns":
+                                param.setResult(2);
+                                break;
+                            case "quick_qs_panel_max_rows":
+                                param.setResult(2);
+                                break;
+                            case "quick_qs_panel_max_tiles":
+                                param.setResult(2);
+                                break;
+                        }
+                    } catch (Resources.NotFoundException ignored) {
+                    }
+                }
+            }
+        );
     }
 }

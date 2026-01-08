@@ -1,0 +1,50 @@
+name: Build Module
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./xposed-module
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Write key
+        run: |
+          if [ ! -z "${{ secrets.KEYSTORE }}" ]; then
+            {
+              echo KEYSTORE_PASSWORD='${{ secrets.KEYSTORE_PASSWORD }}'
+              echo KEY_ALIAS='${{ secrets.KEY_ALIAS }}'
+              echo KEY_PASSWORD='${{ secrets.KEY_PASSWORD }}'
+              echo KEYSTORE_FILE='key.jks'
+            } >> gradle.properties
+            echo ${{ secrets.KEYSTORE }} | base64 -d > key.jks
+          fi
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v5
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Build with Gradle
+        run: ./gradlew clean assembleRelease
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: xposed-module
+          path: xposed-module/app/build/outputs/apk/release/*.apk
