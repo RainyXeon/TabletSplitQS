@@ -27,6 +27,7 @@ public class TabletLandscapeModule implements IXposedHookLoadPackage {
             hookSystemIntegerResource();
             hookWindowRootViewInsets(lpparam);
             hookNotificationWidth(lpparam);
+            hookNotificationStackTranslation(lpparam);
         } catch (Throwable t) {
             XposedBridge.log(t);
         }
@@ -182,6 +183,36 @@ public class TabletLandscapeModule implements IXposedHookLoadPackage {
                     view.setTag(TAG_SPLITQS_MEASURED, Boolean.TRUE);
                     // Re-measure ONCE
                     view.measure(newWidthSpec, heightSpec);
+                }
+            }
+        );
+    }
+
+    private void hookNotificationStackTranslation(XC_LoadPackage.LoadPackageParam lpparam) {
+        XposedHelpers.findAndHookMethod(
+            "com.android.systemui.statusbar.notification.stack.NotificationStackScrollLayout",
+            lpparam.classLoader,
+            "onLayout",
+            boolean.class,
+            int.class,
+            int.class,
+            int.class,
+            int.class,
+            new XC_MethodHook() {
+                @Override
+                protected void afterHookedMethod(MethodHookParam param) {
+                    View stack = (View) param.thisObject;
+                    Resources res = stack.getResources();
+                    Configuration c = res.getConfiguration();
+                    if (c.orientation != Configuration.ORIENTATION_LANDSCAPE)
+                        return;
+                    View root = stack.getRootView();
+                    if (root == null) return;
+                    int rootWidth = root.getWidth();
+                    if (rootWidth <= 0) return;
+                    // Same ratio used for notification panel
+                    float offset = rootWidth * NOTIF_WIDTH_RATIO;
+                    stack.setTranslationX(offset);
                 }
             }
         );
